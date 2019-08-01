@@ -1,0 +1,121 @@
+# Compare the classification performance of linear regression and k-nearest neighbor classification on the zipcode data. 
+# In particular, consider only the 2’s and 3’s for this problem, and k = 1,3,5,7,9,11, 13,15. 
+# Show both the training and the test error for each choice of k.
+
+
+
+# load the appropriate packages
+library("ElemStatLearn")
+library("ggplot2")
+library("mclust")
+
+
+
+# get the 2's and 3's
+zip.train[,1] # the digits are in the first column of the train
+zip.test[,1] # and the first column of the test
+
+
+
+# these logical arguments take 2's or 3's row indis
+train_indis <- which((zip.train[,1] == 2 | zip.train[,1]== 3) == TRUE) 
+test_indis <- which((zip.test[,1] == 2 | zip.test[,1]== 3) == TRUE) 
+
+
+
+# "subset" training set, convert to data.frame (lm does not like matrix)
+my_train <- data.frame(zip.train[train_indis, ]) 
+# "subset" test set
+my_test <- data.frame(zip.test[test_indis, ]) #your "subset" test set
+
+
+
+# quick check of the dimensions of our variables
+dim(my_train)
+dim(my_test)  
+
+
+
+# take a look at the variable names  -- they need to match, and they do
+colnames(my_train) 
+colnames(my_test) 
+
+
+
+# lets rename the first column "Y" so that we do not get confused.
+colnames(my_train)[1] <- "Y" 
+colnames(my_test)[1] <- "Y"
+
+
+
+
+# Linear Regression 
+reg <- lm(Y ~ ., data = my_train)
+summary(reg)
+
+
+
+# predict a response value (y_hat) for the test set
+y_hat0 <- predict(reg, newdata = my_test) 
+y_hat0 # take a look, none are exactly 2 or 3, and some of these are out of range (e.g., obs 360)
+
+
+
+
+# we are solving this problem as a regression, but it is a classification,
+# we need to take one more step to assign "2" or "3" to the different predictions.
+
+
+
+# assign y_hat to be what you got out of the regression, and you some "decision rules below" to assign the final class.
+y_hat <- y_hat0 
+for (i in 1:length(y_hat0)){
+  if (y_hat0[i] < 2.4999){ # what does the prediction look like, if it is less than or equal to 2.4999 , lets call it a 2
+    y_hat[i] <- 2}
+  else{
+    y_hat[i] <- 3} # otherwise, lets call it a 3
+}
+
+
+
+mismatch <- length(which(y_hat != my_test$Y)) # 15 errors
+lm_error_rate <- mismatch/length(y_hat)
+lm_error_rate
+
+
+
+# KNN
+knn.train <- my_train[,2:257] 
+knn.test <- my_test[,2:257]
+knn.train.Y <- as.factor(my_train$Y) 
+knn.test.Y <- as.factor(my_test$Y)
+
+
+
+# KNN Predictions
+predictions.knn.test <- sapply(1:15, function(k) { 
+  knn(train = knn.train, test = knn.test, cl = knn.train.Y, k = k)
+  })
+predictions.knn.train <- sapply(1:15, function(k) {
+  knn(train = knn.train, test = knn.train, cl = knn.train.Y, k = k)
+  })
+
+
+
+# Compute error rates
+errors.xs <- 1:15
+
+errors.knn.test <- apply(predictions.knn.test, 2, function(prediction) {
+  classError(prediction , as.factor(my_test$Y))$errorRate})
+
+errors.knn.train <- apply(predictions.knn.train, 2, function(prediction) {
+  classError(prediction, as.factor(my_train$Y))$errorRate})
+
+errors.lm.test <- sapply(errors.xs, function(k) {
+  classError(y_hat, as.factor(my_test$Y))$errorRate})
+
+errors.lm.train <- sapply(errors.xs, function(k) {
+  classError(y_hat, as.factor(my_train$Y))$errorRate})
+
+errors <- data.frame("K"=errors.xs, "KNN.Train"=errors.knn.train, "KNN.Test"=errors.knn.test, "LR.Train"=errors.lm.train ,"LR.Test"=errors.lm.test)
+
