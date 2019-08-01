@@ -1,0 +1,85 @@
+# We have seen that as the number of features used in a model increases, the training error will necessarily decrease,
+# but the test error may not. We will now explore this in a simulated data set.
+# Generate a data set with p = 20 features, n = 1, 000 observations, and an associated quantitative response vector.
+# Split your data set into a training set containing 100 observations and a test set containing 900 observations.
+
+# clear the history
+rm(list = ls())
+
+# load the packages
+library(ISLR)
+library(dplyr)
+library(plyr)
+library(DAAG)
+library(car)
+library(leaps)
+library(glmnet)
+library(pls)
+library(caret)
+library(ggthemes)
+library(ggplot2)
+library(corrplot)
+
+# set the seed for reproducibility
+set.seed(1234)
+
+# create the data set
+df <- data.frame(replicate(20, rnorm(n = 1000)))
+df %>% reduce(function(y, x) y + ifelse(runif(1) < 0.5, rnorm(1, mean = 5, sd = 1), 0)*x + rnorm(1000)) -> df$Y
+
+
+
+# split the data into training and test sets
+trainIndex <- createDataPartition(df$Y, p = 0.9, list = F)
+
+x_train <- df[trainIndex, -21]
+y_train <- df[trainIndex, 21]
+x_test <- df[-trainIndex, -21]
+y_test <- df[-trainIndex, 21]
+
+
+
+# perform subset selection and plot the training MSE
+best_set <- regsubsets(x = x_train, y = y_train, nvmax = 20)
+best_set_summary <- summary(best_set)
+best_set_summary
+
+
+
+# list and then plot the MSE for the best model of each size
+data_frame(train_error = best_set_summary$rss/900, vars = 1:20) %>%
+  spread(vars, train_error)
+train_error <- best_set_summary$rss/900
+plot(train_error, type="b", main="Best MSE for model size", xlab="# of variables")
+
+
+
+# look at the test error
+test_error = rep(NA,19)
+test.mat <- model.matrix(Y ~ ., data = df[-trainIndex,])
+for (i in 1:20){
+  coefs = coef(best_set, id=i)
+  pred = test.mat[,names(coefs)]%*%coefs
+  test_error[i] = mean((y_test-pred)^2)
+}
+
+
+
+# plot of the test set MSE associated witht he best model of each size
+plot(test_error, type="b", main="Best MSE for model size", xlab="# of variables")
+
+
+
+# minimim MSE value is found with 11 variables
+which.min(test_error)
+
+
+
+corrplot(cor(df), method = 'color', type = 'lower', diag = F)
+# we can see that ~10 variables correlate well with the response variable Y
+
+
+
+# when setting up our response variable Y at the start of this problem, a runif(1) < 0.5 was used to generate the values
+# this would mean that half the time the coefficients would be 0
+# half of our 20 varaibles would be 10 and we found the MSE was minimized with 11 variables included
