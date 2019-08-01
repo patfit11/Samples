@@ -1,14 +1,7 @@
-################################################################################################
-#### This code is for Data Mining I HW 2
-## Created: July 16, 2019
-## Edited:
-################################################################################################
-
+# clear history
 rm(list = ls())
 
-# set working directory
-setwd("/Users/m/Desktop/ADS/Data Mining I/Week 3/HW 2")
-
+# load packages
 library(ISLR)
 library(dplyr)
 library(plyr)
@@ -21,13 +14,16 @@ library(caret)
 library(ggthemes)
 library(ggplot2)
 library(corrplot)
+
 # set the seed for reproducibility
 set.seed(1234)
 
 
-################################################################################################
-#### Problem 1 Data Prep
-################################################################################################
+# In this exercise, we will predict the number of applications received using the other variables in the College data set.
+# Located in the ISLR package.
+
+# Data Prep
+
 # convert categorical variables
 College$Private <- revalue(College$Private, c("Yes"=1))
 College$Private <- revalue(College$Private, c("No"=0))
@@ -55,10 +51,7 @@ x_test <- predict(one_hot_encoding, testing)
 
 
 
-######################
-#### Problem 1(a) ####
-######################
-# fit a linear model
+# Fit a linear model using least squares on the training set, and report the test error obtained.
 lmMod <- lm(Apps ~., data=training)
 summary(lmMod)
 
@@ -76,10 +69,7 @@ lm_info
 
 
 
-######################
-#### Problem 1(b) ####
-######################
-# create the ridge
+# Fit a ridge regression model on the training set, with λ chosen by cross- validation. Report the test error obtained.
 ridge_mod <- glmnet(x=x_train, y=y_train, alpha=0)
 ridge_mod
 
@@ -108,10 +98,7 @@ ridge_info
 
 
 
-######################
-#### Problem 1(d) ####
-######################
-# create the lasso
+# Fit a lasso model on the training set, with λ chosen by crossvalidation. Report the test error obtained
 lasso_mod <- glmnet(x=x_train, y=y_train, alpha=1)
 lasso_mod
 
@@ -140,16 +127,16 @@ lasso_info
 
 
 
-######################
-#### Problem 1(e) ####
-######################
-# convert the data for the PCR function
+# Fit a PCR model on the training set, with k chosen by cross-validation. 
+# Report the test error obtained, along with the value of k selected by cross-validation.
+
+# convert the training data for the PCR function
 my_dats <- as.matrix(training)
 NAmat = matrix(as.numeric(is.na(my_dats)), ncol=18)
 nonNAdx = which(rowSums(NAmat)==0)
 college_train <- training[nonNAdx, ] # the data we will model
 
-# convert the data for the PCR function
+# convert the testing data for the PCR function
 my_dats_two <- as.matrix(testing)
 NAmat = matrix(as.numeric(is.na(my_dats_two)), ncol=18)
 nonNAdx = which(rowSums(NAmat)==0)
@@ -189,9 +176,8 @@ coef(pcr_model$finalModel)
 
 
 
-######################
-#### Problem 1(f) ####
-######################
+# Fit a PLS model on the training set, with k chosen by crossvalidation.
+# Report the test error obtained, along with the value of k selected by cross-validation.
 pls.fit = plsr(Apps ~., data=college_train, scale=TRUE, validation="CV")
 summary(pls.fit)
 validationplot(pls.fit, val.type="MSEP")
@@ -222,9 +208,10 @@ pls_info <- postResample(predict(pls_model, x_test), y_test)
 pls_info
 coef(pls_model$finalModel)
 
-######################
-#### Problem 1(g) ####
-######################
+
+
+# Comment on the results obtained. How accurately can we predict the number of college applications received? 
+# Is there much difference among the test errors resulting from these five approaches?
 test_errors <- rbind(lm_info, ridge_info, lasso_info, pcr_info, pls_info)
 test_errors
 residfunc <- function(fit, data) {
@@ -247,9 +234,12 @@ data_frame(Observed = testing$Apps,
   theme(legend.position = 'top') +
   coord_flip()
 
-################################################################################################
-#### Problem 2
-################################################################################################
+# The insurance company benchmark data set gives information on customers (found online). 
+# Specifically, it contains 86 variables on product-usage data and socio-demographic data derived from zip area codes. 
+# The data were collected to answer the following questions: 
+  # Can you predict who will be interested in buying a caravan insurance policy and give an explanation why? 
+  # Compute the OLS estimates and compare them with those obtained from the following variable-selection algorithms: 
+    # Forwards Selection, Backwards Selection, Lasso regression, and Ridge regression
 rm(list = ls())
 
 # set working directory
@@ -449,87 +439,4 @@ test_error_lasso
 
 lasso_info <- postResample(predict(cv.out_lasso, x_test), y_test)
 lasso_info
-
-
-
-
-
-
-
-
-
-
-
-
-################################################################################################
-#### Problem 3
-################################################################################################
-rm(list = ls())
-
-# set working directory
-setwd("/Users/m/Desktop/ADS/Data Mining I/Week 3/HW 2")
-
-library(ISLR)
-library(dplyr)
-library(plyr)
-library(DAAG)
-library(car)
-library(leaps)
-library(glmnet)
-library(pls)
-library(caret)
-library(ggthemes)
-library(ggplot2)
-library(corrplot)
-# set the seed for reproducibility
-set.seed(1234)
-
-
-df <- data.frame(replicate(20, rnorm(n = 1000)))
-
-df %>% reduce(function(y, x) y + ifelse(runif(1) < 0.5, rnorm(1, mean = 5, sd = 1), 0)*x + rnorm(1000)) -> df$Y
-
-# split the data into training and test sets
-trainIndex <- createDataPartition(df$Y, p = 0.9, list = F)
-
-x_train <- df[trainIndex, -21]
-y_train <- df[trainIndex, 21]
-x_test <- df[-trainIndex, -21]
-y_test <- df[-trainIndex, 21]
-
-
-# perform subset selection and plot the training MSE
-best_set <- regsubsets(x = x_train, y = y_train, nvmax = 20)
-best_set_summary <- summary(best_set)
-best_set_summary
-
-# list and then plot the MSE for the best model of each size
-data_frame(train_error = best_set_summary$rss/900, vars = 1:20) %>%
-  spread(vars, train_error)
-train_error <- best_set_summary$rss/900
-plot(train_error, type="b", main="Best MSE for model size", xlab="# of variables")
-
-
-test_error = rep(NA,19)
-test.mat <- model.matrix(Y ~ ., data = df[-trainIndex,])
-for (i in 1:20){
-  coefs = coef(best_set, id=i)
-  pred = test.mat[,names(coefs)]%*%coefs
-  test_error[i] = mean((y_test-pred)^2)
-}
-
-# plot of the test set MSE associated witht he best model of each size
-plot(test_error, type="b", main="Best MSE for model size", xlab="# of variables")
-
-# minimim MSE value is found with 11 variables
-which.min(test_error)
-
-
-corrplot(cor(df), method = 'color', type = 'lower', diag = F)
-# we can see that ~10 variables correlate well with the response variable Y
-
-# when setting up our response variable Y at the start of this problem, a runif(1) < 0.5 was used to generate the values
-# this would mean that half the time the coefficients would be 0
-# half of our 20 varaibles would be 10 and we found the MSE was minimized with 11 variables included
-
 
